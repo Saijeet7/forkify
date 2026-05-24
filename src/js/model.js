@@ -1,4 +1,4 @@
-import { API_URL,RESULTS_PER_PAGE } from './config.js';
+import { API_URL, RESULTS_PER_PAGE, BOOKMARK_STORAGE_KEY } from './config.js';
 import { getJSON } from './helpers.js';
 
 export const state = {
@@ -9,6 +9,7 @@ export const state = {
     page: 1,
     resultsPerPage: RESULTS_PER_PAGE,
   },
+  bookmarks: [],
 };
 
 export const loadRecipe = async function (id) {
@@ -25,6 +26,7 @@ export const loadRecipe = async function (id) {
       cookingTime: recipe.cooking_time,
       ingredients: recipe.ingredients,
     };
+    state.recipe.bookmarked = state.bookmarks.some(b => b.id === id);
   } catch (err) {
     throw err;
   }
@@ -52,11 +54,41 @@ export const getSearchResultsPage = function (page = state.search.page) {
   const start = (page - 1) * state.search.resultsPerPage;
   const end = page * state.search.resultsPerPage;
   return state.search.results.slice(start, end);
-}
+};
 
-export const updateServings = function(newServings){
+export const updateServings = function (newServings) {
   state.recipe.ingredients.forEach(ing => {
     ing.quantity = (ing.quantity * newServings) / state.recipe.servings;
   });
   state.recipe.servings = newServings;
-}
+};
+
+const persistBookmarks = function () {
+  localStorage.setItem(BOOKMARK_STORAGE_KEY, JSON.stringify(state.bookmarks));
+};
+
+export const addBookmark = function (recipe) {
+  state.bookmarks.push({
+    id: recipe.id,
+    title: recipe.title,
+    publisher: recipe.publisher,
+    image: recipe.image,
+  });
+  if (recipe.id === state.recipe.id) state.recipe.bookmarked = true;
+  persistBookmarks();
+};
+
+export const deleteBookmark = function (id) {
+  const index = state.bookmarks.findIndex(el => el.id === id);
+  if (index === -1) return;
+
+  state.bookmarks.splice(index, 1);
+  if (id === state.recipe.id) state.recipe.bookmarked = false;
+  persistBookmarks();
+};
+
+const init = function () {
+  const storage = localStorage.getItem(BOOKMARK_STORAGE_KEY);
+  if (storage) state.bookmarks = JSON.parse(storage);
+};
+init();
