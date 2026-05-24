@@ -37,7 +37,7 @@ const controlSearchResults = async function () {
     // 2. Load search results
     await model.loadSearchResults(query);
 
-    // 3. Render results
+    // 3. Render results (must use render, not update — spinner DOM has a different structure)
     resultsView.render(model.getSearchResultsPage(1));
 
     // 4. Render pagination buttons
@@ -55,7 +55,8 @@ const controlPagination = function (goToPage) {
 const controlServings = function (newServings) {
   if (!Number.isFinite(newServings) || newServings < 1) return;
   model.updateServings(newServings);
-  recipeView.render(model.state.recipe);
+  // recipeView.render(model.state.recipe);
+  recipeView.update(model.state.recipe);
 };
 
 const init = function () {

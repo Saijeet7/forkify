@@ -748,7 +748,7 @@ const controlSearchResults = async function() {
         if (!query) return;
         // 2. Load search results
         await _modelJs.loadSearchResults(query);
-        // 3. Render results
+        // 3. Render results (must use render, not update — spinner DOM has a different structure)
         (0, _resultsViewJsDefault.default).render(_modelJs.getSearchResultsPage(1));
         // 4. Render pagination buttons
         (0, _paginationViewJsDefault.default).render(_modelJs.state.search);
@@ -763,7 +763,8 @@ const controlPagination = function(goToPage) {
 const controlServings = function(newServings) {
     if (!Number.isFinite(newServings) || newServings < 1) return;
     _modelJs.updateServings(newServings);
-    (0, _recipeViewJsDefault.default).render(_modelJs.state.recipe);
+    // recipeView.render(model.state.recipe);
+    (0, _recipeViewJsDefault.default).update(_modelJs.state.recipe);
 };
 const init = function() {
     (0, _recipeViewJsDefault.default).addHandlerRender(controlRecipes);
@@ -3266,6 +3267,24 @@ class View {
         this._clear();
         this._parentElement.insertAdjacentHTML('afterbegin', this._generateMarkup());
     }
+    update(data) {
+        if (!data || Array.isArray(data) && data.length === 0) return this.renderError();
+        this._data = data;
+        const newMarkup = this._generateMarkup();
+        const newDOM = document.createRange().createContextualFragment(newMarkup);
+        const newElements = Array.from(newDOM.querySelectorAll('*'));
+        const currentElements = Array.from(this._parentElement.querySelectorAll('*'));
+        // update() only works when DOM structure matches (e.g. after a prior render)
+        if (newElements.length !== currentElements.length) return this.render(data);
+        newElements.forEach((newEl, i)=>{
+            const curEl = currentElements[i];
+            if (!curEl) return;
+            // Update changed text
+            if (!newEl.isEqualNode(curEl) && newEl.firstChild?.nodeValue?.trim() !== '') curEl.textContent = newEl.textContent;
+            // Update changed attributes (e.g. data-update-to on serving buttons)
+            if (!newEl.isEqualNode(curEl)) Array.from(newEl.attributes).forEach((attr)=>curEl.setAttribute(attr.name, attr.value));
+        });
+    }
     _clear() {
         this._parentElement.innerHTML = '';
     }
@@ -3326,9 +3345,10 @@ class ResultsView extends (0, _viewJsDefault.default) {
         return this._data.map(this._generateMarkupPreview).join('');
     }
     _generateMarkupPreview(result) {
+        const id = window.location.hash.slice(1);
         return `
         <li class="preview">
-            <a class="preview__link" href="#${result.id}">
+            <a class="preview__link ${result.id === id ? 'preview__link--active' : ''}" href="#${result.id}">
               <figure class="preview__fig">
                 <img src="${result.image}" alt="${result.title}" />
               </figure>
